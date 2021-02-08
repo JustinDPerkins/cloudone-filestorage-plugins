@@ -1,4 +1,9 @@
+
+# artifacts
 zip/
 
 # python
 .venv
+
+# SAM
+packaged.yaml

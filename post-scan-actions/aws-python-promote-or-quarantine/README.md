@@ -6,10 +6,12 @@ After a scan occurs, this example Lambda function places clean files in one buck
 
 1. **Install supporting tools**
     - Install the AWS command line interface (CLI). See [Installing the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-install.html) for details.
-    - Install GNU Make if you don't want to use the AWS CLI. See [GNU Make](https://www.gnu.org/software/make/) for download information.
-2. **Create two S3 buckets**
+    - Install the AWS SAM command line interface (CLI). See [Installing the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) for details.
+    - Install GNU Make if you don't want to use the AWS/SAM CLI. See [GNU Make](https://www.gnu.org/software/make/) for download information.
+2. **Create S3 buckets**
     - Create a 'Promote bucket' to receive clean files. Example: `fss-promote`.
     - Create a 'Quarantine bucket' to receive quarantined files. Example: `fss-quarantine`.
+    - Create a deployment artifact bucket if you are deploying with SAM CLI. Example: `fss-plugin-poq-deployment`.
 3. **Create a custom policy**
 
     <details>
@@ -37,6 +39,11 @@ After a scan occurs, this example Lambda function places clean files in one buck
 
         where `<YOUR_FSS_LAMBDA_POLICY>` is replaced with the name you want to give to the custom policy. Example: `FSS_Lambda_Policy`.
     3. In the output, take note of the custom policy's ARN. Example: `arn:aws:iam::0123456789012:policy/FSS_Lambda_Policy`
+    </details>
+
+    <details>
+    <summary>Using the SAM CLI</summary>
+    You can skip this step with SAM.
     </details>
 
     <details>
@@ -71,6 +78,7 @@ After a scan occurs, this example Lambda function places clean files in one buck
         ]
     }
     ```
+
     - where:
         - `<YOUR_BUCKET_TO_SCAN>` is replaced with your scanning bucket name. You can find this name in AWS > **CloudFormation** > your all-in-one stack > **Resources** > your storage stack > **Outputs > ScanningBucket**.
         - `<YOUR_QUARANTINE_BUCKET>` is replaced with your Quarantine bucket name.
@@ -90,7 +98,7 @@ After a scan occurs, this example Lambda function places clean files in one buck
         - Click the  **Lambda** service from the list.
         - Click **Next: Permissions**.
     5. In the search box:
-        - Search for ` AWSLambdaBasicExecutionRole`.
+        - Search for `AWSLambdaBasicExecutionRole`.
         - Select its check box.
         - Search for `<YOUR_FSS_LAMBDA_POLICY>` which you created earlier. Example: `FSS_Lambda_Policy`
         - Select its check box in the list.
@@ -125,6 +133,11 @@ After a scan occurs, this example Lambda function places clean files in one buck
     </details>
 
     <details>
+    <summary>Using the SAM CLI</summary>
+    You can skip this step with SAM.
+    </details>
+
+    <details>
     <summary><a name="JSON_trust-doc">JSON code (for use in the trust document)</a></summary>
 
     ```json
@@ -141,6 +154,7 @@ After a scan occurs, this example Lambda function places clean files in one buck
         ]
     }
     ```
+
     </details>
 
 ## Deploy the Lambda
@@ -173,10 +187,10 @@ After a scan occurs, this example Lambda function places clean files in one buck
         - In the **Value** field, enter `<YOUR_QUARANTINE_BUCKET>` . Example: `fss-quarantine`
     - Click **Save** to save both variables.
 4. **Adjust timeout**
-    -  Scroll to the **Basic settings** section.
-    -  Click **Edit** (on the right).
-    -  Set the **Timeout** to 30.
-    -  Click **Save** to save settings.
+    - Scroll to the **Basic settings** section.
+    - Click **Edit** (on the right).
+    - Set the **Timeout** to 30.
+    - Click **Save** to save settings.
 
 </details>
 
@@ -208,6 +222,28 @@ After a scan occurs, this example Lambda function places clean files in one buck
     - `<YOUR_ZIP_NAME>` is replaced with the name of the ZIP file you created earlier. Example: `promote-or-quarantine`
     - `<YOUR_PROMOTE_BUCKET>` is replaced with the name of your 'Promote bucket' as it appears in S3.
     - `<YOUR_QUARANTINE_BUCKET>` is replaced with the name of your 'Quarantine bucket' as it appears in S3.
+
+</details>
+
+<details>
+<summary>Using the SAM CLI</summary>
+
+1. Clone this repository.
+2. Run the following commands.
+
+    ```bash
+    cd post-scan-actions/aws-python-promote-or-quarantine
+    sam deploy \
+        --s3-bucket <YOUR_DEPLOYMENT_ARTIFACT_BUCKET> \
+        --stack-name <YOUR_STACK_NAME> \
+        --parameter-overrides \
+            PromoteBucketName=<YOUR_PROMOTE_BUCKET> \
+            QuarantineBucketName=<YOUR_QUARANTINE_BUCKET> \
+            ScanResultTopicARN=<YOUR_SCAN_RESULT_TOPIC> \
+            ScanningBucketName=<YOUR_SCANNING_BUCKET> \
+        --capabilities CAPABILITY_IAM
+    ```
+
 </details>
 
 <details>
@@ -221,11 +257,13 @@ After a scan occurs, this example Lambda function places clean files in one buck
     PROMOTE_BUCKET=<YOUR_PROMOTE_BUCKET> QUARANTINE_BUCKET=<YOUR_QUARANTINE_BUCKET> \
     make create-function
     ```
+
 - where:
     - `<YOUR_FSS_FUNC_NAME>` is replaced with the name you want to give your Lambda function. Example: `FSS_Prom_Quar_Lambda`.
     - `<YOUR_FSS_ROLE_ARN>` is replaced with the ARN of the role you previously created for the Lambda function. You can find the ARN in the AWS console under **Services > IAM > Roles** > your role > **Role ARN** field (at the top). Example: `arn:aws:iam::012345678901:role/FSS_Lambda_Role`.
     - `<YOUR_PROMOTE_BUCKET>` is replaced with the name of your 'Promote bucket' as it appears in S3.
     - `<YOUR_QUARANTINE_BUCKET>` is replaced with the name of your 'Quarantine bucket' as it appears in S3.
+
 </details>
 
 ## Subscribe the Lambda to the SNS topic
@@ -268,6 +306,7 @@ After a scan occurs, this example Lambda function places clean files in one buck
         --statement-id <YOUR_FSS_FUNC_NAME> --action "lambda:InvokeFunction" \
         --principal sns.amazonaws.com
         ```
+
     - Enter the following AWS CLI command to subscribe your Lamdba function to the SNS topic:
 
         `aws sns subscribe --topic-arn <SNS_Topic_ARN> --notification-endpoint <YOUR_LAMBDA_FUNCTION_ARN> --protocol lambda`
@@ -277,12 +316,13 @@ After a scan occurs, this example Lambda function places clean files in one buck
     </details>
 
 ## Test the Lambda
+
 To test that the Lambda function was deployed properly, you'll need to generate a malware detection using the [eicar test file](https://secure.eicar.org/eicar.com "A file used for testing anti-malware scanners."), and then check the Quarantine bucket to make sure the `eicar` file was sent there successfully.
 
 1. **Download the Eicar test file**
    - Temporarily disable your virus scanner or create an exception, otherwise it will catch the `eicar` file and delete it.
-    - Browser: Go to the [eicar file](https://secure.eicar.org/eicar.com) page and download `eicar_com.zip` or any of the other versions of this file.
-    - CLI: curl -O https://secure.eicar.org/eicar_com.zip
+   - Browser: Go to the [eicar file](https://secure.eicar.org/eicar.com) page and download `eicar_com.zip` or any of the other versions of this file.
+   - CLI: `curl -O https://secure.eicar.org/eicar_com.zip`
 2. **Upload the eicar file to the ScanningBucket**
 
     <details>
@@ -302,7 +342,7 @@ To test that the Lambda function was deployed properly, you'll need to generate 
 
     - Enter the folowing AWS CLI command to upload the Eicar test file to the scanning bucket:
 
-        `aws s3 cp eicar_com.zip s3://<YOUR_SCANNING_BUCKET> `
+        `aws s3 cp eicar_com.zip s3://<YOUR_SCANNING_BUCKET>`
     - where:
         - `<YOUR_SCANNING_BUCKET>` is replaced with the ScanningBucket name.
 
